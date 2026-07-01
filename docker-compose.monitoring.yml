@@ -1,0 +1,20 @@
+# Monitoring-stack overlay
+#
+# Layer on top of docker-compose.yml to join an existing Prometheus/Grafana stack:
+#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+#
+# Requirements:
+#   - The monitoring stack must be running first (creates the external network)
+#   - Set MONITORING_NETWORK= in .env if your network has a different name
+#     (run: docker network ls | grep monitoring)
+
+networks:
+  monitoring_monitoring:
+    external: true
+    name: ${MONITORING_NETWORK:-monitoring_monitoring}
+
+services:
+  exporter:
+    networks:
+      - default
+      - monitoring_monitoring

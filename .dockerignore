@@ -1,0 +1,13 @@
+# Exclude the pre-compiled binary (Docker will build its own inside the container)
+directory-exporter
+
+# Exclude test fixtures — not needed inside the image
+testdata/
+
+# Exclude runtime artifacts
+*.log
+/tmp/
+
+# Git
+.git/
+.gitignore

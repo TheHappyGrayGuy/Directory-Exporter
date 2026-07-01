@@ -1,0 +1,62 @@
+# directory-exporter target configuration
+#
+# Mount this file into the container as /config/targets.yml (read-only).
+# Reload without restart: curl -X POST -H "Authorization: Bearer <secret>" http://localhost:9200/-/reload
+#
+# Config layers (each overrides the previous):
+#   1. Built-in defaults
+#   2. This file
+#   3. Individual environment variables (SCAN_INTERVAL, RELOAD_SECRET, …)
+
+# ── Secret ────────────────────────────────────────────────────────────────────
+# Do NOT put reload_secret here. This file needs to be world-readable by the
+# container process (UID 65534). Secrets belong in .env as RELOAD_SECRET=...
+# or passed via the environment. If unset everywhere, a random one is generated
+# at startup (not logged — find it via docker exec or set it explicitly).
+
+# ── Scan tuning (optional — defaults shown) ───────────────────────────────────
+scan_interval:      "120s"
+scan_workers:       2
+scan_timeout:       "90s"
+discovery_interval: "6h"
+
+# Cap on lstat() calls per directory for oldest/newest timestamp computation.
+# 0 = stat every file (accurate, slow on huge dirs).
+# 5000 = fast but timestamps only reflect the first 5k files (causes scan_truncated=1).
+max_stat_files:     5000
+max_files_per_dir:  0
+
+# ── Targets ───────────────────────────────────────────────────────────────────
+# Each target is a base path (the Docker volume mount point) plus either:
+#   dirs: [list]   — explicit subdirectories to watch (no filesystem walk)
+#   max_depth: N   — auto-discover all subdirs up to N levels deep
+#
+# IMPORTANT: base paths must match the container-side mount paths in docker-compose.yml.
+
+targets:
+
+  # Example 1 — explicit list (recommended for production)
+  # Watches only the three named subdirs; ignores everything else under /streams.
+  - base: /streams
+    dirs:
+      - buffer
+      - discarded
+      - rejected
+
+  # Example 2 — deeper explicit path (stream=logs, type=nginx)
+  # - base: /streams
+  #   dirs:
+  #     - logs/nginx
+  #     - logs/app
+
+  # Example 3 — auto-discover (good for dev/test where dirs change often)
+  # Finds all subdirectories one level deep under /data.
+  # - base: /data
+  #   max_depth: 1
+
+  # Example 4 — multiple base paths on different mounts
+  # Add a matching volume line in docker-compose.yml for each base.
+  # - base: /mnt/nas/archive
+  #   dirs:
+  #     - 2024
+  #     - 2025

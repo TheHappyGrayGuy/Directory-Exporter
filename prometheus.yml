@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: "directory-exporter"
+    # The /metrics endpoint serves from an in-memory cache, so a tight
+    # scrape_timeout is safe — responses are sub-millisecond regardless of
+    # how many files are being monitored.
+    scrape_interval: 30s
+    scrape_timeout:  5s
+
+    static_configs:
+      - targets: ["directory-exporter:9200"]
+        labels:
+          environment: "local"
+
+  # Prometheus self-monitoring (optional but useful)
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

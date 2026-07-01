@@ -1,0 +1,77 @@
+# directory-exporter — standalone compose
+#
+# Copy .env.example → .env, edit it, then:
+#   docker compose up -d --build
+#
+# To integrate with an existing Prometheus/Grafana stack, layer the override:
+#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d --build
+
+networks:
+  default:
+    driver: bridge
+
+services:
+  exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: directory-exporter:latest
+    container_name: ${CONTAINER_NAME:-directory-exporter}
+    restart: unless-stopped
+
+    environment:
+      CONFIG_FILE:        /config/targets.yml
+      RELOAD_SECRET:      ${RELOAD_SECRET:-}      # auto-generated if blank; set it for stable reloads
+      LISTEN_ADDR:        ":9200"
+      SCAN_INTERVAL:      ${SCAN_INTERVAL:-120s}
+      SCAN_WORKERS:       ${SCAN_WORKERS:-2}
+      DISCOVERY_INTERVAL: ${DISCOVERY_INTERVAL:-6h}
+      SCAN_TIMEOUT:       ${SCAN_TIMEOUT:-90s}
+      MAX_FILES_PER_DIR:  ${MAX_FILES_PER_DIR:-0}
+      MAX_STAT_FILES:     ${MAX_STAT_FILES:-5000}
+      GOGC:               "50"
+      GOMEMLIMIT:         ${GOMEMLIMIT:-96MiB}   # Go runtime cap; use MiB/GiB suffix
+
+    ports:
+      # Bound to 127.0.0.1 — reachable from this host only, not from the network.
+      # For a remote Prometheus scrape use the monitoring overlay (container DNS)
+      # or a reverse proxy with TLS in front of this port.
+      - "127.0.0.1:${PORT:-9200}:9200"
+
+    volumes:
+      # Config file — required. Points to your targets.yml on the host.
+      - ${CONFIG_FILE_HOST:-./targets.yml}:/config/targets.yml:ro
+
+      # Data mounts — add one line per base path declared in targets.yml.
+      # Format: <host_path>:<container_path>:ro
+      # Example: - /mnt/nas/streams:/streams:ro
+      # Current deployment:
+      - ${DATA_PATH_1:-/home/javad/streams}:/streams:ro
+
+    deploy:
+      resources:
+        limits:
+          cpus: "${CPU_LIMIT:-0.25}"
+          memory: ${MEMORY_LIMIT:-128M}
+        reservations:
+          cpus: "0.05"
+          memory: 32M
+
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test: ["CMD", "/directory-exporter", "-healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"

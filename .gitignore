@@ -1,0 +1,14 @@
+﻿# Secrets
+.env
+
+# Compiled binary
+directory-exporter
+
+# Go
+*.exe
+*.test
+*.out
+
+# OS
+.DS_Store
+Thumbs.db
